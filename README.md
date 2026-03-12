@@ -1,75 +1,108 @@
-<img alt="Drupal Logo" src="https://www.drupal.org/files/Wordmark_blue_RGB.png" height="60px">
+# Datastore Data Preview
 
-Drupal is an open source content management platform supporting a variety of
-websites ranging from personal weblogs to large community-driven websites. For
-more information, visit the Drupal website, [Drupal.org][Drupal.org], and join
-the [Drupal community][Drupal community].
+Paginated, sortable HTML table previews of DKAN datastore resources. Provides a block plugin, render element, admin page, and programmatic builder service.
 
-## Contributing
+## Requirements
 
-Drupal is developed on [Drupal.org][Drupal.org], the home of the international
-Drupal community since 2001!
+- Drupal `^10.2 || ^11`
+- DKAN modules: `common`, `datastore`, `metastore`
 
-[Drupal.org][Drupal.org] hosts Drupal's [GitLab repository][GitLab repository],
-its [issue queue][issue queue], and its [documentation][documentation]. Before
-you start working on code, be sure to search the [issue queue][issue queue] and
-create an issue if your aren't able to find an existing issue.
+## Installation
 
-Every issue on Drupal.org automatically creates a new community-accessible fork
-that you can contribute to. Learn more about the code contribution process on
-the [Issue forks & merge requests page][issue forks].
+```bash
+composer require getdkan/datastore_data_preview
+drush en datastore_data_preview
+```
 
 ## Usage
 
-For a brief introduction, see [USAGE.txt](/core/USAGE.txt). You can also find
-guides, API references, and more by visiting Drupal's [documentation
-page][documentation].
+### Block
 
-You can quickly extend Drupal's core feature set by installing any of its
-[thousands of free and open source modules][modules]. With Drupal and its
-module ecosystem, you can often build most or all of what your project needs
-before writing a single line of code.
+Place "Datastore Data Preview" via the block layout UI. Configure the resource ID, data source, columns, page size, and sort options in the block settings.
 
-## Changelog
+### Render Element
 
-Drupal keeps detailed [change records][changelog]. You can search Drupal's
-changes for a record of every notable breaking change and new feature since
-2011.
+```php
+$build['preview'] = [
+  '#type' => 'data_preview',
+  '#resource_id' => 'abc123__1',
+  '#data_source' => 'database',
+  '#columns' => ['name', 'date', 'amount'],
+  '#default_page_size' => 25,
+  '#default_sort' => 'date',
+  '#default_sort_direction' => 'desc',
+];
+```
 
-## Security
+Properties: `#resource_id`, `#data_source` (`database`|`api`), `#data_source_instance` (optional `DataSourceInterface`), `#columns`, `#default_page_size`, `#default_sort`, `#default_sort_direction`, `#conditions`, `#api_base_url`.
 
-For a list of security announcements, see the [Security advisories
-page][Security advisories] (available as [an RSS feed][security RSS]). This
-page also describes how to subscribe to these announcements via email.
+### Admin Page
 
-For information about the Drupal security process, or to find out how to report
-a potential security issue to the Drupal security team, see the [Security team
-page][security team].
+`/admin/dkan/data-preview/{resource_id}` — requires `administer dkan` permission.
 
-## Need a helping hand?
+### Programmatic (Builder Service)
 
-Visit the [Support page][support] or browse [over a thousand Drupal
-providers][service providers] offering design, strategy, development, and
-hosting services.
+```php
+$builder = \Drupal::service('dkan.data_preview.builder');
+$dataSource = \Drupal::service('dkan.data_preview.datasource.database');
+$build = $builder->build($dataSource, 'abc123__1', [
+  'columns' => ['name', 'date'],
+  'default_page_size' => 50,
+  'default_sort' => 'date',
+]);
+```
 
-## Legal matters
+Builder options: `columns`, `page_sizes`, `default_page_size`, `default_sort`, `default_sort_direction`, `conditions`, `pager_element`, `query_prefix`.
 
-Know your rights when using Drupal by reading Drupal core's
-[license](/core/LICENSE.txt).
+## Architecture
 
-Learn about the [Drupal trademark and logo policy here][trademark].
+### Data Source Pattern
 
-[Drupal.org]: https://www.drupal.org
-[Drupal community]: https://www.drupal.org/community
-[GitLab repository]: https://git.drupalcode.org/project/drupal
-[issue queue]: https://www.drupal.org/project/issues/drupal
-[issue forks]: https://www.drupal.org/drupalorg/docs/gitlab-integration/issue-forks-merge-requests
-[documentation]: https://www.drupal.org/documentation
-[changelog]: https://www.drupal.org/list-changes/drupal
-[modules]: https://www.drupal.org/project/project_module
-[security advisories]: https://www.drupal.org/security
-[security RSS]: https://www.drupal.org/security/rss.xml
-[security team]: https://www.drupal.org/drupal-security-team
-[service providers]: https://www.drupal.org/drupal-services
-[support]: https://www.drupal.org/support
-[trademark]: https://www.drupal.com/trademark
+All data sources implement `DataSourceInterface::fetchData()` and return a `DataSourceResult` (rows, totalCount, schema).
+
+| Service ID | Class | Description |
+|---|---|---|
+| `dkan.data_preview.datasource.database` | `DatabaseDataSource` | Queries datastore DB tables via DKAN's `DatastoreService` |
+| `dkan.data_preview.datasource.api` | `ApiDataSource` | HTTP POST to `/api/1/datastore/query/{id}` (supports external DKAN sites via `setBaseUrl()`) |
+| — | `ArrayDataSource` | In-memory array data; instantiate directly, not a service |
+
+### Services
+
+| Service ID | Class | Purpose |
+|---|---|---|
+| `dkan.data_preview.builder` | `DataPreviewBuilder` | Builds render arrays with table, pager, page-size form |
+| `dkan.data_preview.resource_resolver` | `ResourceIdResolver` | Converts distribution UUID/node → `{identifier}__{version}` |
+
+### Resource ID Formats
+
+- **Database source**: `{identifier}__{version}` (hash + version derived from the distribution's download URL)
+- **API source**: distribution UUID
+- `ResourceIdResolver` converts between formats
+
+## Block Configuration
+
+| Field | Type | Description |
+|---|---|---|
+| Resource ID | textfield | `identifier__version` (database) or distribution UUID (API) |
+| Data Source | select | `database` (direct DB) or `api` (HTTP) |
+| API Base URL | url | External DKAN site URL; empty = current site. Only for API source. |
+| Columns | textfield | Comma-separated column machine names; empty = all |
+| Page Size | select | 10, 25, 50, 100 (default: 25) |
+| Sort Column | textfield | Column machine name for initial sort; empty = default order |
+| Sort Direction | select | `asc` or `desc` (default: `asc`) |
+
+## Development
+
+### Testing
+
+```bash
+cd datastore_data_preview
+composer install
+vendor/bin/phpunit
+```
+
+### Linting
+
+```bash
+vendor/bin/phpcs --standard=Drupal,DrupalPractice src/
+```
