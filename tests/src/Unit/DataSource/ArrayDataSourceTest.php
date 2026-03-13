@@ -3,11 +3,13 @@
 namespace Drupal\Tests\datastore_data_preview\Unit\DataSource;
 
 use Drupal\datastore_data_preview\DataSource\ArrayDataSource;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 /**
  * @coversDefaultClass \Drupal\datastore_data_preview\DataSource\ArrayDataSource
  * @group datastore_data_preview
+ * @group unit
  */
 class ArrayDataSourceTest extends TestCase {
 
@@ -94,115 +96,104 @@ class ArrayDataSourceTest extends TestCase {
   }
 
   /**
+   * Provides condition arrays with expected result counts and names.
+   */
+  public static function conditionProvider(): array {
+    return [
+      'equals' => [
+        [['property' => 'city', 'value' => 'Denver']],
+        2,
+        ['Alice', 'Carol'],
+      ],
+      'greater than' => [
+        [['property' => 'age', 'value' => 28, 'operator' => '>']],
+        2,
+        ['Alice', 'Carol'],
+      ],
+      'not equal (<>)' => [
+        [['property' => 'city', 'value' => 'Denver', 'operator' => '<>']],
+        3,
+        NULL,
+      ],
+      'not equal (!=)' => [
+        [['property' => 'city', 'value' => 'Denver', 'operator' => '!=']],
+        3,
+        NULL,
+      ],
+      'IN' => [
+        [['property' => 'city', 'value' => ['Austin', 'Boston'], 'operator' => 'IN']],
+        3,
+        NULL,
+      ],
+      'NOT IN' => [
+        [['property' => 'city', 'value' => ['Austin', 'Boston'], 'operator' => 'NOT IN']],
+        2,
+        NULL,
+      ],
+      'LIKE with wildcards' => [
+        [['property' => 'name', 'value' => '%a%', 'operator' => 'LIKE']],
+        3,
+        ['Alice', 'Carol', 'Dave'],
+      ],
+      'LIKE without wildcards' => [
+        [['property' => 'name', 'value' => 'Alice', 'operator' => 'LIKE']],
+        1,
+        ['Alice'],
+      ],
+      'less than or equal' => [
+        [['property' => 'age', 'value' => 25, 'operator' => '<=']],
+        2,
+        ['Bob', 'Eve'],
+      ],
+      'multiple conditions (AND)' => [
+        [
+          ['property' => 'city', 'value' => 'Austin'],
+          ['property' => 'age', 'value' => 25, 'operator' => '<='],
+        ],
+        2,
+        NULL,
+      ],
+      'IN with empty array' => [
+        [['property' => 'city', 'value' => [], 'operator' => 'IN']],
+        0,
+        NULL,
+      ],
+      'NOT IN with empty array' => [
+        [['property' => 'city', 'value' => [], 'operator' => 'NOT IN']],
+        5,
+        NULL,
+      ],
+      'missing property (NULL = NULL)' => [
+        [['property' => 'nonexistent', 'value' => NULL, 'operator' => '=']],
+        5,
+        NULL,
+      ],
+      'unknown operator defaults to TRUE' => [
+        [['property' => 'age', 'value' => 25, 'operator' => 'BETWEEN']],
+        5,
+        NULL,
+      ],
+    ];
+  }
+
+  /**
    * @covers ::fetchData
    * @covers ::evaluateCondition
    */
-  public function testConditionEquals(): void {
+  #[DataProvider('conditionProvider')]
+  public function testCondition(array $conditions, int $expectedCount, ?array $expectedNames): void {
     $source = new ArrayDataSource($this->getSampleRows());
-    $result = $source->fetchData('x', 0, 0, NULL, 'asc', [
-      ['property' => 'city', 'value' => 'Denver'],
-    ]);
+    $result = $source->fetchData('x', 0, 0, NULL, 'asc', $conditions);
 
-    $this->assertCount(2, $result->rows);
-    $this->assertEquals(2, $result->totalCount);
-    $this->assertEquals('Alice', $result->rows[0]->name);
-    $this->assertEquals('Carol', $result->rows[1]->name);
-  }
+    $this->assertCount($expectedCount, $result->rows);
+    $this->assertEquals($expectedCount, $result->totalCount);
 
-  /**
-   * @covers ::evaluateCondition
-   */
-  public function testConditionGreaterThan(): void {
-    $source = new ArrayDataSource($this->getSampleRows());
-    $result = $source->fetchData('x', 0, 0, NULL, 'asc', [
-      ['property' => 'age', 'value' => 28, 'operator' => '>'],
-    ]);
-
-    $this->assertCount(2, $result->rows);
-    $names = array_map(fn($r) => $r->name, $result->rows);
-    $this->assertContains('Alice', $names);
-    $this->assertContains('Carol', $names);
-  }
-
-  /**
-   * @covers ::evaluateCondition
-   */
-  public function testConditionNotEqual(): void {
-    $source = new ArrayDataSource($this->getSampleRows());
-    $result = $source->fetchData('x', 0, 0, NULL, 'asc', [
-      ['property' => 'city', 'value' => 'Denver', 'operator' => '<>'],
-    ]);
-
-    $this->assertCount(3, $result->rows);
-  }
-
-  /**
-   * @covers ::evaluateCondition
-   */
-  public function testConditionIn(): void {
-    $source = new ArrayDataSource($this->getSampleRows());
-    $result = $source->fetchData('x', 0, 0, NULL, 'asc', [
-      ['property' => 'city', 'value' => ['Austin', 'Boston'], 'operator' => 'IN'],
-    ]);
-
-    $this->assertCount(3, $result->rows);
-    $this->assertEquals(3, $result->totalCount);
-  }
-
-  /**
-   * @covers ::evaluateCondition
-   */
-  public function testConditionNotIn(): void {
-    $source = new ArrayDataSource($this->getSampleRows());
-    $result = $source->fetchData('x', 0, 0, NULL, 'asc', [
-      ['property' => 'city', 'value' => ['Austin', 'Boston'], 'operator' => 'NOT IN'],
-    ]);
-
-    $this->assertCount(2, $result->rows);
-  }
-
-  /**
-   * @covers ::evaluateCondition
-   */
-  public function testConditionLike(): void {
-    $source = new ArrayDataSource($this->getSampleRows());
-    $result = $source->fetchData('x', 0, 0, NULL, 'asc', [
-      ['property' => 'name', 'value' => '%a%', 'operator' => 'LIKE'],
-    ]);
-
-    // Case insensitive: Alice, Carol, Dave all contain 'a'.
-    $names = array_map(fn($r) => $r->name, $result->rows);
-    $this->assertContains('Alice', $names);
-    $this->assertContains('Carol', $names);
-    $this->assertContains('Dave', $names);
-  }
-
-  /**
-   * @covers ::evaluateCondition
-   */
-  public function testConditionLessThanOrEqual(): void {
-    $source = new ArrayDataSource($this->getSampleRows());
-    $result = $source->fetchData('x', 0, 0, NULL, 'asc', [
-      ['property' => 'age', 'value' => 25, 'operator' => '<='],
-    ]);
-
-    $this->assertCount(2, $result->rows);
-    $names = array_map(fn($r) => $r->name, $result->rows);
-    $this->assertContains('Bob', $names);
-    $this->assertContains('Eve', $names);
-  }
-
-  /**
-   * @covers ::evaluateCondition
-   */
-  public function testMultipleConditions(): void {
-    $source = new ArrayDataSource($this->getSampleRows());
-    $result = $source->fetchData('x', 0, 0, NULL, 'asc', [
-      ['property' => 'city', 'value' => 'Austin'],
-      ['property' => 'age', 'value' => 25, 'operator' => '<='],
-    ]);
-
-    $this->assertCount(2, $result->rows);
+    if ($expectedNames !== NULL) {
+      $names = array_map(fn($r) => $r->name, $result->rows);
+      foreach ($expectedNames as $name) {
+        $this->assertContains($name, $names);
+      }
+    }
   }
 
   /**
@@ -280,15 +271,45 @@ class ArrayDataSourceTest extends TestCase {
   }
 
   /**
+   * Provides rows and expected schema field definitions.
+   */
+  public static function schemaInferenceProvider(): array {
+    return [
+      'underscore to description' => [
+        [['first_name' => 'Alice', 'total_score' => 95]],
+        [
+          'first_name' => ['type' => 'text', 'description' => 'First name'],
+          'total_score' => ['type' => 'number', 'description' => 'Total score'],
+        ],
+      ],
+      'null value infers text' => [
+        [['name' => NULL, 'age' => 30]],
+        [
+          'name' => ['type' => 'text', 'description' => 'Name'],
+          'age' => ['type' => 'number', 'description' => 'Age'],
+        ],
+      ],
+      'mixed types uses first row' => [
+        [['value' => 'hello'], ['value' => 42]],
+        [
+          'value' => ['type' => 'text', 'description' => 'Value'],
+        ],
+      ],
+    ];
+  }
+
+  /**
    * @covers ::inferSchema
    */
-  public function testSchemaInfersUnderscoreDescription(): void {
-    $rows = [['first_name' => 'Alice', 'total_score' => 95]];
+  #[DataProvider('schemaInferenceProvider')]
+  public function testSchemaInference(array $rows, array $expectedFields): void {
     $source = new ArrayDataSource($rows);
     $result = $source->fetchData('x', 0, 0, NULL, 'asc');
 
-    $this->assertEquals('First name', $result->schema['fields']['first_name']['description']);
-    $this->assertEquals('Total score', $result->schema['fields']['total_score']['description']);
+    foreach ($expectedFields as $field => $expected) {
+      $this->assertEquals($expected['type'], $result->schema['fields'][$field]['type'], "Type mismatch for '$field'");
+      $this->assertEquals($expected['description'], $result->schema['fields'][$field]['description'], "Description mismatch for '$field'");
+    }
   }
 
   /**
@@ -304,86 +325,6 @@ class ArrayDataSourceTest extends TestCase {
   }
 
   /**
-   * @covers ::evaluateCondition
-   */
-  public function testConditionOnMissingProperty(): void {
-    $source = new ArrayDataSource($this->getSampleRows());
-    $result = $source->fetchData('x', 0, 0, NULL, 'asc', [
-      ['property' => 'nonexistent', 'value' => NULL, 'operator' => '='],
-    ]);
-
-    // NULL == NULL is true, so all rows match.
-    $this->assertCount(5, $result->rows);
-  }
-
-  /**
-   * @covers ::evaluateCondition
-   */
-  public function testConditionUnknownOperator(): void {
-    $source = new ArrayDataSource($this->getSampleRows());
-    $result = $source->fetchData('x', 0, 0, NULL, 'asc', [
-      ['property' => 'age', 'value' => 25, 'operator' => 'BETWEEN'],
-    ]);
-
-    // Unknown operator defaults to TRUE — no rows filtered.
-    $this->assertCount(5, $result->rows);
-  }
-
-  /**
-   * @covers ::evaluateCondition
-   */
-  public function testConditionNotEqualBang(): void {
-    $source = new ArrayDataSource($this->getSampleRows());
-    $resultBang = $source->fetchData('x', 0, 0, NULL, 'asc', [
-      ['property' => 'city', 'value' => 'Denver', 'operator' => '!='],
-    ]);
-    $resultAngle = $source->fetchData('x', 0, 0, NULL, 'asc', [
-      ['property' => 'city', 'value' => 'Denver', 'operator' => '<>'],
-    ]);
-
-    $this->assertCount(3, $resultBang->rows);
-    $this->assertEquals($resultAngle->totalCount, $resultBang->totalCount);
-  }
-
-  /**
-   * @covers ::evaluateCondition
-   */
-  public function testConditionInWithEmptyArray(): void {
-    $source = new ArrayDataSource($this->getSampleRows());
-    $result = $source->fetchData('x', 0, 0, NULL, 'asc', [
-      ['property' => 'city', 'value' => [], 'operator' => 'IN'],
-    ]);
-
-    $this->assertCount(0, $result->rows);
-    $this->assertEquals(0, $result->totalCount);
-  }
-
-  /**
-   * @covers ::evaluateCondition
-   */
-  public function testConditionNotInWithEmptyArray(): void {
-    $source = new ArrayDataSource($this->getSampleRows());
-    $result = $source->fetchData('x', 0, 0, NULL, 'asc', [
-      ['property' => 'city', 'value' => [], 'operator' => 'NOT IN'],
-    ]);
-
-    $this->assertCount(5, $result->rows);
-  }
-
-  /**
-   * @covers ::evaluateCondition
-   */
-  public function testLikeWithNoWildcard(): void {
-    $source = new ArrayDataSource($this->getSampleRows());
-    $result = $source->fetchData('x', 0, 0, NULL, 'asc', [
-      ['property' => 'name', 'value' => 'Alice', 'operator' => 'LIKE'],
-    ]);
-
-    $this->assertCount(1, $result->rows);
-    $this->assertEquals('Alice', $result->rows[0]->name);
-  }
-
-  /**
    * @covers ::fetchData
    */
   public function testOffsetBeyondTotal(): void {
@@ -392,34 +333,6 @@ class ArrayDataSourceTest extends TestCase {
 
     $this->assertCount(0, $result->rows);
     $this->assertEquals(5, $result->totalCount);
-  }
-
-  /**
-   * @covers ::inferSchema
-   */
-  public function testSchemaInferenceNullValue(): void {
-    $rows = [['name' => NULL, 'age' => 30]];
-    $source = new ArrayDataSource($rows);
-    $result = $source->fetchData('x', 0, 0, NULL, 'asc');
-
-    // NULL is not int/float, so type should be 'text'.
-    $this->assertEquals('text', $result->schema['fields']['name']['type']);
-    $this->assertEquals('number', $result->schema['fields']['age']['type']);
-  }
-
-  /**
-   * @covers ::inferSchema
-   */
-  public function testSchemaInferenceMixedTypes(): void {
-    $rows = [
-      ['value' => 'hello'],
-      ['value' => 42],
-    ];
-    $source = new ArrayDataSource($rows);
-    $result = $source->fetchData('x', 0, 0, NULL, 'asc');
-
-    // Only first row is inspected — string → text.
-    $this->assertEquals('text', $result->schema['fields']['value']['type']);
   }
 
   /**

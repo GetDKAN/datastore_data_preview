@@ -2,19 +2,22 @@
 
 namespace Drupal\Tests\datastore_data_preview\Unit\Element;
 
-use Drupal\Core\DependencyInjection\ContainerBuilder;
 use Drupal\Core\Logger\LoggerChannelFactoryInterface;
 use Drupal\datastore_data_preview\DataSource\ApiDataSource;
 use Drupal\datastore_data_preview\DataSource\DatabaseDataSource;
 use Drupal\datastore_data_preview\DataSource\DataSourceInterface;
 use Drupal\datastore_data_preview\Element\DataPreview;
 use Drupal\datastore_data_preview\Service\DataPreviewBuilder;
+use MockChain\Chain;
+use MockChain\Options;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
  * @coversDefaultClass \Drupal\datastore_data_preview\Element\DataPreview
  * @group datastore_data_preview
+ * @group unit
  */
 class DataPreviewElementTest extends TestCase {
 
@@ -244,20 +247,20 @@ class DataPreviewElementTest extends TestCase {
     ?ApiDataSource $apiSource = NULL,
     ?LoggerInterface $logger = NULL,
   ): void {
-    $container = new ContainerBuilder();
-    $container->set('dkan.data_preview.builder', $builder);
+    $loggerFactory = (new Chain($this))
+      ->add(LoggerChannelFactoryInterface::class, 'get', $logger ?? $this->createMock(LoggerInterface::class))
+      ->getMock();
 
-    if ($databaseSource) {
-      $container->set('dkan.data_preview.datasource.database', $databaseSource);
-    }
-    if ($apiSource) {
-      $container->set('dkan.data_preview.datasource.api', $apiSource);
-    }
+    $services = (new Options())
+      ->index(0)
+      ->add('dkan.data_preview.builder', $builder)
+      ->add('dkan.data_preview.datasource.database', $databaseSource ?? $this->createMock(DatabaseDataSource::class))
+      ->add('dkan.data_preview.datasource.api', $apiSource ?? $this->createMock(ApiDataSource::class))
+      ->add('logger.factory', $loggerFactory);
 
-    $loggerFactory = $this->createMock(LoggerChannelFactoryInterface::class);
-    $loggerFactory->method('get')
-      ->willReturn($logger ?? $this->createMock(LoggerInterface::class));
-    $container->set('logger.factory', $loggerFactory);
+    $container = (new Chain($this))
+      ->add(ContainerInterface::class, 'get', $services)
+      ->getMock();
 
     \Drupal::setContainer($container);
   }

@@ -13,6 +13,7 @@ use Symfony\Component\HttpFoundation\RequestStack;
 /**
  * @coversDefaultClass \Drupal\datastore_data_preview\DataSource\ApiDataSource
  * @group datastore_data_preview
+ * @group unit
  */
 class ApiDataSourceTest extends TestCase {
 

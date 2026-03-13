@@ -2,19 +2,22 @@
 
 namespace Drupal\Tests\datastore_data_preview\Unit\Plugin\Block;
 
-use Drupal\Core\StringTranslation\TranslationInterface;
 use Drupal\datastore_data_preview\DataSource\ApiDataSource;
 use Drupal\datastore_data_preview\DataSource\DatabaseDataSource;
 use Drupal\datastore_data_preview\Plugin\Block\DataPreviewBlock;
 use Drupal\datastore_data_preview\Service\DataPreviewBuilder;
+use Drupal\Tests\datastore_data_preview\Traits\StringTranslationStubTrait;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 
 /**
  * @coversDefaultClass \Drupal\datastore_data_preview\Plugin\Block\DataPreviewBlock
  * @group datastore_data_preview
+ * @group unit
  */
 class DataPreviewBlockTest extends TestCase {
+
+  use StringTranslationStubTrait;
 
   /**
    * @covers ::build
@@ -387,18 +390,6 @@ class DataPreviewBlockTest extends TestCase {
     $block->setStringTranslation($this->getStringTranslationStub());
 
     return $block;
-  }
-
-  /**
-   * Returns a stub translation service.
-   */
-  protected function getStringTranslationStub(): TranslationInterface {
-    $translation = $this->createMock(TranslationInterface::class);
-    $translation->method('translateString')
-      ->willReturnCallback(function ($wrapper) {
-        return $wrapper->getUntranslatedString();
-      });
-    return $translation;
   }
 
 }
