@@ -3,10 +3,10 @@
 namespace Drupal\Tests\datastore_data_preview\Unit\Service;
 
 use Drupal\Core\Pager\PagerManagerInterface;
-use Drupal\Core\StringTranslation\TranslationInterface;
 use Drupal\datastore_data_preview\DataSource\DataSourceInterface;
 use Drupal\datastore_data_preview\DataSource\DataSourceResult;
 use Drupal\datastore_data_preview\Service\DataPreviewBuilder;
+use Drupal\Tests\datastore_data_preview\Traits\StringTranslationStubTrait;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
@@ -14,8 +14,11 @@ use Symfony\Component\HttpFoundation\RequestStack;
 /**
  * @coversDefaultClass \Drupal\datastore_data_preview\Service\DataPreviewBuilder
  * @group datastore_data_preview
+ * @group unit
  */
 class DataPreviewBuilderTest extends TestCase {
+
+  use StringTranslationStubTrait;
 
   /**
    * Schema used across tests.
@@ -450,18 +453,6 @@ class DataPreviewBuilderTest extends TestCase {
     $dataSource = $this->createMock(DataSourceInterface::class);
     $dataSource->method('fetchData')->willReturn($result);
     return $dataSource;
-  }
-
-  /**
-   * Returns a stub translation service that returns the untranslated string.
-   */
-  protected function getStringTranslationStub(): TranslationInterface {
-    $translation = $this->createMock(TranslationInterface::class);
-    $translation->method('translateString')
-      ->willReturnCallback(function ($wrapper) {
-        return $wrapper->getUntranslatedString();
-      });
-    return $translation;
   }
 
 }
