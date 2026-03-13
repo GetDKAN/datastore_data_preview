@@ -7,6 +7,9 @@ namespace Drupal\datastore;
  */
 class DatastoreService {
 
+  /**
+   * Get storage for a resource.
+   */
   public function getStorage(string $identifier, $version = NULL) {
     return NULL;
   }

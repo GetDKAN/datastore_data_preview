@@ -7,8 +7,14 @@ namespace Drupal\common\Storage;
  */
 interface DatabaseTableInterface {
 
+  /**
+   * Execute a query against the storage.
+   */
   public function query(Query $query);
 
+  /**
+   * Get the table schema.
+   */
   public function getSchema(): array;
 
 }

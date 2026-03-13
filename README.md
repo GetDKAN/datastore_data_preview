@@ -2,6 +2,16 @@
 
 Paginated, sortable HTML table previews of DKAN datastore resources. Provides a block plugin, render element, admin page, and programmatic builder service.
 
+## Features
+
+- **Dataset node integration** — automatically attaches preview tables to dataset node pages for all tabular distributions
+- **Edit form links** — adds "Preview data" links next to each distribution's downloadURL in the dataset edit form
+- **AJAX navigation** — sort, pager, and page-size interactions update via fetch without full page reloads; updates the browser URL via History API
+- **Extra field** — registers `data_preview` as a display extra field on the `data` content type, configurable via Manage Display UI
+- **Block plugin** — place and configure preview tables in any block region
+- **Render element** — `#type => 'data_preview'` for use in custom render arrays
+- **Pluggable data sources** — query datastore tables directly (database) or via DKAN's REST API (local or remote)
+
 ## Requirements
 
 - Drupal `^10.2 || ^11`
@@ -15,6 +25,14 @@ drush en datastore_data_preview
 ```
 
 ## Usage
+
+### Dataset Display
+
+Data preview tables appear automatically on dataset node pages when the `data_preview` extra field is enabled. Only distributions with importable file types (CSV, TSV, etc.) are shown.
+
+Control visibility and weight at **Admin > Structure > Content types > Data > Manage Display**. The extra field appears as "Data Preview" in the field list.
+
+In the dataset edit form, each tabular distribution shows a "Preview data" link next to its downloadURL, linking to the admin preview page.
 
 ### Block
 

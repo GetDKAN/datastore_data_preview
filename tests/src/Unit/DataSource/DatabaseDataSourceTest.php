@@ -8,7 +8,6 @@ use Drupal\datastore\DatastoreService;
 use Drupal\datastore_data_preview\DataSource\DatabaseDataSource;
 use Drupal\datastore_data_preview\DataSource\DataSourceInterface;
 use MockChain\Chain;
-use MockChain\Options;
 use MockChain\Sequence;
 use PHPUnit\Framework\TestCase;
 

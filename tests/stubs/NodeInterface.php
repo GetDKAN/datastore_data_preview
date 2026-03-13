@@ -7,6 +7,9 @@ namespace Drupal\node;
  */
 interface NodeInterface {
 
+  /**
+   * Get a field value.
+   */
   public function get(string $field_name);
 
 }
