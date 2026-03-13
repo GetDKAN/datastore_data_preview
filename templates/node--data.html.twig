@@ -1,0 +1,60 @@
+{#
+/**
+    * @file
+    * Overrides node--data.html.twig from DKAN metastore to add data preview.
+    *
+    * Only change from the original: renders {{ content.data_preview }} after
+    * the Downloads section.
+    */
+#}
+<article{{ attributes }}>
+    {{ title_prefix }}
+    {% if label and not page %}
+        <h1{{ title_attributes }}>
+            <a href="{{ url }}" rel="bookmark">{{ label }}</a>
+        </h1>
+    {% endif %}
+    {{ title_suffix }}
+    <div{{ content_attributes }}>
+    {% if not page %}
+        <p>Last updated: {{ dataset.modified|date("m/d/Y") }}</p>
+        {{ dataset.description | drupal_escape }}
+    {% endif %}
+    {% if page or view_mode == "full" %}
+        <p>Last updated: {{ dataset.modified|date("m/d/Y") }}</p>
+        {{ dataset.description | drupal_escape }}
+        {% if dataset.distributions|length > 0 %}
+            <h2>Downloads</h2>
+            <ul>
+            {% for distribution in dataset.distributions %}
+                <li><a href="{{distribution.downloadURL}}">{{distribution.title}} ({{distribution.format}})</a></li>
+            {% endfor %}
+            </ul>
+        {% endif %}
+        {{ content.data_preview }}
+        {% if dataset.themes|length > 1 %}
+            <h2>Themes</h2>
+        {% elseif dataset.themes|length == 1 %}
+             <h2>Theme</h2>
+        {% endif %}
+        {% if dataset.themes|length > 0 %}
+            <ul>
+            {% for theme in dataset.themes %}
+                <li>{{ theme }}</li>
+            {% endfor %}</ul>
+        {% endif %}
+        {% if dataset.keywords|length > 1 %}
+            <h2>Keywords</h2>
+        {% elseif dataset.keywords|length == 1 %}
+             <h2>Keyword</h2>
+        {% endif %}
+        {% if dataset.keywords|length > 0 %}
+            <ul>
+            {% for keyword in dataset.keywords %}
+                <li>{{ keyword }}</li>
+            {% endfor %}</ul>
+        {% endif %}
+        {{ dataset.metadata_table }}
+    {% endif %}
+    </div>
+</article>

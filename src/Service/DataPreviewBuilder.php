@@ -3,7 +3,6 @@
 namespace Drupal\datastore_data_preview\Service;
 
 use Drupal\Core\Pager\PagerManagerInterface;
-use Drupal\Core\Render\Markup;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Drupal\Core\Utility\TableSort;
 use Drupal\datastore_data_preview\DataSource\DataSourceInterface;
@@ -112,23 +111,33 @@ class DataPreviewBuilder {
     $rows = $this->buildRows($result->rows, $schema, $options['columns']);
 
     // Build page size selector.
-    $pageSizeForm = $this->buildPageSizeSelector($options['page_sizes'], $pageSize, $pageSizeParam, $request);
+    $pageSizeForm = $this->buildPageSizeSelector($options['page_sizes'], $pageSize, $pageSizeParam);
 
     // Build result summary.
     $resultSummary = $this->buildResultSummary($offset, count($result->rows), $result->totalCount);
 
     return [
       '#theme' => 'datastore_data_preview',
+      '#cache' => [
+        'contexts' => [
+          'url.query_args:page_size',
+          'url.query_args:sort',
+          'url.query_args:order',
+          'url.query_args:page',
+        ],
+      ],
       '#table' => [
         '#type' => 'table',
         '#header' => $header,
         '#rows' => $rows,
+        '#sticky' => FALSE,
         '#empty' => $this->t('No data available.'),
         '#attributes' => ['class' => ['data-preview-table']],
       ],
       '#pager' => [
         '#type' => 'pager',
         '#element' => $options['pager_element'],
+        '#parameters' => [$pageSizeParam => $pageSize],
       ],
       '#page_size_form' => $pageSizeForm,
       '#result_summary' => $resultSummary,
@@ -214,32 +223,37 @@ class DataPreviewBuilder {
   /**
    * Build the page size selector as a dropdown select.
    */
-  protected function buildPageSizeSelector(array $pageSizes, int $currentSize, string $paramName, Request $request): array {
-    $currentQuery = $request->query->all();
-    $basePath = $request->getPathInfo();
-
-    $optionsHtml = '';
-    foreach ($pageSizes as $size) {
-      $query = $currentQuery;
-      $query[$paramName] = $size;
-      // Reset to first page when changing page size.
-      unset($query['page']);
-
-      $queryString = http_build_query($query);
-      $href = $basePath . ($queryString ? '?' . $queryString : '');
-
-      $selected = ($size === $currentSize) ? ' selected' : '';
-      $optionsHtml .= '<option value="' . htmlspecialchars($href, ENT_QUOTES, 'UTF-8') . '"' . $selected . '>' . $size . '</option>';
-    }
-
-    $selectHtml = '<span class="data-preview-page-size-wrapper">'
-      . '<span class="data-preview-page-size-label">' . $this->t('Show') . '</span>'
-      . '<select class="data-preview-page-size-select">' . $optionsHtml . '</select>'
-      . '<span class="data-preview-page-size-label">' . $this->t('entries') . '</span>'
-      . '</span>';
+  protected function buildPageSizeSelector(array $pageSizes, int $currentSize, string $paramName): array {
+    $options = array_combine($pageSizes, $pageSizes);
 
     return [
-      '#markup' => Markup::create($selectHtml),
+      '#type' => 'container',
+      '#attributes' => ['class' => ['data-preview-page-size-wrapper']],
+      'label' => [
+        '#type' => 'html_tag',
+        '#tag' => 'label',
+        '#value' => $this->t('Show'),
+        '#attributes' => [
+          'for' => 'data-preview-page-size',
+          'class' => ['data-preview-page-size-label'],
+        ],
+      ],
+      'select' => [
+        '#type' => 'select',
+        '#options' => $options,
+        '#default_value' => $currentSize,
+        '#attributes' => [
+          'class' => ['data-preview-page-size-select'],
+          'id' => 'data-preview-page-size',
+          'data-param-name' => $paramName,
+        ],
+      ],
+      'suffix' => [
+        '#type' => 'html_tag',
+        '#tag' => 'span',
+        '#value' => $this->t('entries'),
+        '#attributes' => ['class' => ['data-preview-page-size-label']],
+      ],
     ];
   }
 
@@ -248,18 +262,26 @@ class DataPreviewBuilder {
    */
   protected function buildResultSummary(int $offset, int $rowCount, int $totalCount): array {
     if ($totalCount === 0) {
-      return ['#markup' => '<span class="data-preview-summary">' . $this->t('No results') . '</span>'];
+      return [
+        '#type' => 'html_tag',
+        '#tag' => 'span',
+        '#value' => $this->t('No results'),
+        '#attributes' => ['class' => ['data-preview-summary']],
+      ];
     }
 
     $start = $offset + 1;
     $end = $offset + $rowCount;
 
     return [
-      '#markup' => '<span class="data-preview-summary">' . $this->t('Showing @start-@end of @total results', [
+      '#type' => 'html_tag',
+      '#tag' => 'span',
+      '#value' => $this->t('Showing @start-@end of @total results', [
         '@start' => number_format($start),
         '@end' => number_format($end),
         '@total' => number_format($totalCount),
-      ]) . '</span>',
+      ]),
+      '#attributes' => ['class' => ['data-preview-summary']],
     ];
   }
 

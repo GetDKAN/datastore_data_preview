@@ -1,0 +1,25 @@
+<?php
+
+/**
+ * @file
+ * Install and update hooks for the Datastore Data Preview module.
+ */
+
+/**
+ * Implements hook_install().
+ *
+ * Enables the data_preview extra field on the default view display for the
+ * data node type so it works out of the box.
+ */
+function datastore_data_preview_install() {
+  $display = \Drupal::entityTypeManager()
+    ->getStorage('entity_view_display')
+    ->load('node.data.default');
+
+  if ($display) {
+    $display->setComponent('data_preview', [
+      'weight' => 100,
+    ]);
+    $display->save();
+  }
+}

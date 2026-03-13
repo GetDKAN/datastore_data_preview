@@ -3,6 +3,7 @@
 namespace Drupal\datastore_data_preview\Plugin\Block;
 
 use Drupal\Core\Block\BlockBase;
+use Drupal\Core\Cache\Cache;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
 use Drupal\datastore_data_preview\DataSource\ApiDataSource;
@@ -208,6 +209,18 @@ class DataPreviewBlock extends BlockBase implements ContainerFactoryPluginInterf
         $this->apiDataSource->setBaseUrl(NULL);
       }
     }
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getCacheContexts() {
+    return Cache::mergeContexts(parent::getCacheContexts(), [
+      'url.query_args:page_size',
+      'url.query_args:sort',
+      'url.query_args:order',
+      'url.query_args:page',
+    ]);
   }
 
 }
