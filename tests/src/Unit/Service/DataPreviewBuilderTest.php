@@ -140,7 +140,7 @@ class DataPreviewBuilderTest extends TestCase {
     $this->assertEquals('container', $pageSizeForm['#type']);
     $this->assertEquals('select', $pageSizeForm['select']['#type']);
     $this->assertEquals([10 => 10, 25 => 25, 50 => 50], $pageSizeForm['select']['#options']);
-    $this->assertEquals(25, $pageSizeForm['select']['#default_value']);
+    $this->assertEquals(25, $pageSizeForm['select']['#value']);
     $this->assertContains('data-preview-page-size-select', $pageSizeForm['select']['#attributes']['class']);
   }
 
@@ -405,6 +405,42 @@ class DataPreviewBuilderTest extends TestCase {
     $summary = (string) $build['#result_summary']['#value'];
 
     $this->assertStringContainsString('1,234', $summary);
+  }
+
+  /**
+   * Test page size select uses #value (not #default_value) so the selected
+   * attribute renders correctly outside of a Drupal form context.
+   */
+  public function testPageSizeSelectUsesValueNotDefaultValue() {
+    $builder = $this->createBuilder();
+    $dataSource = $this->createDataSource([], 0);
+
+    $build = $builder->build($dataSource, 'test-id', [
+      'page_sizes' => [10, 25, 50, 100],
+      'default_page_size' => 25,
+    ]);
+
+    $select = $build['#page_size_form']['select'];
+    $this->assertArrayHasKey('#value', $select,
+      'Select must use #value for correct rendering outside Form API.');
+    $this->assertArrayNotHasKey('#default_value', $select,
+      '#default_value does not render selected attribute outside Form API.');
+    $this->assertEquals(25, $select['#value']);
+  }
+
+  /**
+   * Test page size select reflects query param override.
+   */
+  public function testPageSizeSelectValueFromQueryParam() {
+    $builder = $this->createBuilder(['page_size' => '50']);
+    $dataSource = $this->createDataSource([], 0);
+
+    $build = $builder->build($dataSource, 'test-id', [
+      'page_sizes' => [10, 25, 50, 100],
+      'default_page_size' => 25,
+    ]);
+
+    $this->assertEquals(50, $build['#page_size_form']['select']['#value']);
   }
 
   /**
