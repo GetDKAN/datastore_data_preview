@@ -241,7 +241,7 @@ class DataPreviewBuilder {
       'select' => [
         '#type' => 'select',
         '#options' => $options,
-        '#default_value' => $currentSize,
+        '#value' => $currentSize,
         '#attributes' => [
           'class' => ['data-preview-page-size-select'],
           'id' => 'data-preview-page-size',
