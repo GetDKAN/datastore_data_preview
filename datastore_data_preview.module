@@ -6,9 +6,12 @@
  */
 
 use Drupal\common\DataResource;
+use Drupal\Core\Entity\Display\EntityViewDisplayInterface;
+use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Link;
 use Drupal\Core\Url;
+use Drupal\node\NodeInterface;
 
 /**
  * Implements hook_theme().
@@ -68,6 +71,7 @@ function datastore_data_preview_form_node_data_edit_form_alter(&$form, FormState
     $previewLink = [
       '#type' => 'container',
       '#attributes' => ['class' => ['data-preview-link']],
+      '#attached' => ['library' => ['datastore_data_preview/data_preview']],
       'link' => Link::fromTextAndUrl(t('Preview data'), $url)->toRenderable(),
     ];
     // Insert preview link right after downloadURL in the distribution fieldset.
@@ -80,5 +84,109 @@ function datastore_data_preview_form_node_data_edit_form_alter(&$form, FormState
       }
     }
     $distElement = $inserted;
+  }
+}
+
+/**
+ * Implements hook_theme_registry_alter().
+ *
+ * Overrides DKAN's node--data template to include data preview output.
+ */
+function datastore_data_preview_theme_registry_alter(&$theme_registry) {
+  if (isset($theme_registry['node__data'])) {
+    $module_path = \Drupal::service('extension.list.module')->getPath('datastore_data_preview');
+    $theme_registry['node__data']['path'] = $module_path . '/templates';
+  }
+}
+
+/**
+ * Implements hook_entity_extra_field_info().
+ */
+function datastore_data_preview_entity_extra_field_info() {
+  $extra = [];
+  if (\Drupal::entityTypeManager()->getStorage('node_type')->load('data')) {
+    $extra['node']['data']['display']['data_preview'] = [
+      'label' => t('Data Preview'),
+      'description' => t('Paginated preview tables for tabular distributions.'),
+      'weight' => 100,
+      'visible' => TRUE,
+    ];
+  }
+  return $extra;
+}
+
+/**
+ * Implements hook_ENTITY_TYPE_view() for node entities.
+ *
+ * Adds data preview tables for each tabular distribution on dataset nodes.
+ */
+function datastore_data_preview_node_view(array &$build, EntityInterface $entity, EntityViewDisplayInterface $display, $view_mode) {
+  if (!$entity instanceof NodeInterface) {
+    return;
+  }
+  if ($entity->bundle() !== 'data') {
+    return;
+  }
+  if (($entity->get('field_data_type')->value ?? '') !== 'dataset') {
+    return;
+  }
+  if (!$display->getComponent('data_preview')) {
+    return;
+  }
+
+  // During node preview of a new (unsaved) node, datastore tables don't exist.
+  if (!empty($entity->in_preview) && $entity->isNew()) {
+    $build['data_preview'] = [
+      '#markup' => '<p>' . t('Data preview is available after the dataset is saved and data is imported.') . '</p>',
+    ];
+    return;
+  }
+
+  /** @var \Drupal\common\DatasetInfo $datasetInfo */
+  $datasetInfo = \Drupal::service('dkan.common.dataset_info');
+  $info = $datasetInfo->gather($entity->uuid());
+
+  $revision = $info['published_revision'] ?? $info['latest_revision'] ?? NULL;
+  if (!$revision || empty($revision['distributions'])) {
+    return;
+  }
+
+  $previews = [];
+  foreach ($revision['distributions'] as $dist) {
+    if (!is_array($dist) || empty($dist['resource_id']) || empty($dist['resource_version'])) {
+      continue;
+    }
+    if (!in_array($dist['mime_type'] ?? '', DataResource::IMPORTABLE_FILE_TYPES)) {
+      continue;
+    }
+
+    $resourceId = $dist['resource_id'] . '__' . $dist['resource_version'];
+
+    // Derive a label from the source path filename.
+    $label = '';
+    if (!empty($dist['source_path'])) {
+      $label = basename(parse_url($dist['source_path'], PHP_URL_PATH) ?: $dist['source_path']);
+    }
+
+    $preview = [
+      '#type' => 'container',
+      '#attributes' => ['class' => ['data-preview-distribution']],
+    ];
+    if ($label) {
+      $preview['heading'] = [
+        '#type' => 'html_tag',
+        '#tag' => 'h3',
+        '#value' => t('Preview: @label', ['@label' => $label]),
+      ];
+    }
+    $preview['table'] = [
+      '#type' => 'data_preview',
+      '#resource_id' => $resourceId,
+    ];
+    $previews[] = $preview;
+  }
+
+  if ($previews) {
+    $build['data_preview'] = $previews;
   }
 }

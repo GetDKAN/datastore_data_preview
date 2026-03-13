@@ -3,6 +3,7 @@ data_preview:
     component:
       css/data-preview.css: {}
   js:
-    js/page-size-select.js: {}
+    js/data-preview.js: {}
   dependencies:
     - core/drupal
+    - core/once

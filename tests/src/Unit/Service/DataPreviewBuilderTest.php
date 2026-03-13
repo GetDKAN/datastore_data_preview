@@ -122,7 +122,7 @@ class DataPreviewBuilderTest extends TestCase {
   }
 
   /**
-   * Test page size selector renders as markup with select element.
+   * Test page size selector renders as Drupal render elements.
    */
   public function testPageSizeOptions() {
     $builder = $this->createBuilder();
@@ -134,12 +134,11 @@ class DataPreviewBuilderTest extends TestCase {
     ]);
 
     $pageSizeForm = $build['#page_size_form'];
-    $this->assertArrayHasKey('#markup', $pageSizeForm);
-    $markup = (string) $pageSizeForm['#markup'];
-    $this->assertStringContainsString('data-preview-page-size-select', $markup);
-    $this->assertStringContainsString('>10<', $markup);
-    $this->assertStringContainsString('>25<', $markup);
-    $this->assertStringContainsString('>50<', $markup);
+    $this->assertEquals('container', $pageSizeForm['#type']);
+    $this->assertEquals('select', $pageSizeForm['select']['#type']);
+    $this->assertEquals([10 => 10, 25 => 25, 50 => 50], $pageSizeForm['select']['#options']);
+    $this->assertEquals(25, $pageSizeForm['select']['#default_value']);
+    $this->assertContains('data-preview-page-size-select', $pageSizeForm['select']['#attributes']['class']);
   }
 
   /**
@@ -178,10 +177,13 @@ class DataPreviewBuilderTest extends TestCase {
     $dataSource = $this->createDataSource($rows, 100);
 
     $build = $builder->build($dataSource, 'test-id', ['default_page_size' => 25]);
-    $summary = (string) $build['#result_summary']['#markup'];
+    $summary = $build['#result_summary'];
 
-    $this->assertStringContainsString('1', $summary);
-    $this->assertStringContainsString('100', $summary);
+    $this->assertEquals('html_tag', $summary['#type']);
+    $this->assertEquals('span', $summary['#tag']);
+    $this->assertStringContainsString('1', (string) $summary['#value']);
+    $this->assertStringContainsString('100', (string) $summary['#value']);
+    $this->assertContains('data-preview-summary', $summary['#attributes']['class']);
   }
 
   /**
@@ -192,9 +194,10 @@ class DataPreviewBuilderTest extends TestCase {
     $dataSource = $this->createDataSource([], 0);
 
     $build = $builder->build($dataSource, 'test-id');
-    $summary = (string) $build['#result_summary']['#markup'];
+    $summary = $build['#result_summary'];
 
-    $this->assertStringContainsString('No results', $summary);
+    $this->assertEquals('html_tag', $summary['#type']);
+    $this->assertStringContainsString('No results', (string) $summary['#value']);
   }
 
   /**
@@ -396,13 +399,13 @@ class DataPreviewBuilderTest extends TestCase {
     $dataSource = $this->createDataSource($rows, 1234);
 
     $build = $builder->build($dataSource, 'test-id', ['default_page_size' => 25]);
-    $summary = (string) $build['#result_summary']['#markup'];
+    $summary = (string) $build['#result_summary']['#value'];
 
     $this->assertStringContainsString('1,234', $summary);
   }
 
   /**
-   * Test page size selector links don't include page param.
+   * Test page size selector has param name but no legacy data attributes.
    */
   public function testPageSizeResetsPagination() {
     $builder = $this->createBuilder(['page' => '3']);
@@ -413,9 +416,10 @@ class DataPreviewBuilderTest extends TestCase {
       'default_page_size' => 25,
     ]);
 
-    $markup = (string) $build['#page_size_form']['#markup'];
-    // The page_size links should not contain page= parameter.
-    $this->assertStringNotContainsString('page=', $markup);
+    $attrs = $build['#page_size_form']['select']['#attributes'];
+    $this->assertEquals('page_size', $attrs['data-param-name']);
+    $this->assertArrayNotHasKey('data-current-query', $attrs);
+    $this->assertArrayNotHasKey('data-base-path', $attrs);
   }
 
   /**
